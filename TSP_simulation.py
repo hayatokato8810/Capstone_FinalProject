@@ -8,6 +8,7 @@ from pprint import pformat
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 # Global Constants
 Field_OriginX = 0
@@ -15,100 +16,69 @@ Field_OriginY = 0
 Field_Width   = 10
 Field_Height  = 10
 
-# Named Tuple Container Type Storing Sampling Location Data
-SamplingLocation = namedtuple('SamplingLocation',['x','y'])
-
-# Rectangle Node Organizing the Locations Inside the Quad Tree
-class RectNode():
-  def __init__(self, _x, _y, _w, _h, _locations):
-    self.x = _x
-    self.y = _y
-    self.width = _w
-    self.height = _h
-    self.locations = _locations
-    self.children = []
+# Named Tuple Container Class Storing Sampling Location Data
+class Point(namedtuple('Point',['x','y'])):
+  def __repr__(self):
+    return pformat(tuple(self))
 
 # Quad Tree Class Used to Efficiently Store Sampling Location Data
 class QuadTree():
-  def __init__(self, _k, _width, _height, locations):
-    self.threshold = _k
-    self.samplingLocations = locations
-    self.root = RectNode(0, 0, _width, _height, self.samplingLocations)
 
-  def subdivide(self):
-    self.recursiveSubdivide(self.root, self.threshold)
+  Child = namedtuple('Child',['ne','se','sw','nw'])
 
-  def recursiveSubdivide(self, node, k):
-    if len(node.locations)<=k:
-      return
-    w_ = float(node.width/2)
-    h_ = float(node.height/2)
+  def __init__(self, _bottomLeft=Point(0,0), _topRight=Point(0,0), _n=1):
+    self.points = []
+    self.bottomLeft = _bottomLeft
+    self.topRight = _topRight
+    self.threshold = _n
+    self.child = None
 
-    # South West
-    sw_locations = self.contains(node.x, node.y, w_, h_, node.locations)
-    sw_node = RectNode(node.x, node.y, w_, h_, sw_locations)
-    self.recursiveSubdivide(sw_node, k)
-    # North West
-    nw_locations = self.contains(node.x, node.y+h_, w_, h_, node.locations)
-    nw_node = RectNode(node.x, node.y+h_, w_, h_, nw_locations)
-    self.recursiveSubdivide(nw_node, k)
-    # North East
-    ne_locations = self.contains(node.x+w_, node.y+h_, w_, h_, node.locations)
-    ne_node = RectNode(node.x+w_, node.y+h_, w_, h_, ne_locations)
-    self.recursiveSubdivide(ne_node, k)
-    # South East
-    se_locations = self.contains(node.x+w_, node.y, w_, h_, node.locations)
-    se_node = RectNode(node.x+w_, node.y, w_, h_, se_locations)
-    self.recursiveSubdivide(se_node, k)
+  def insert(self, _point):
+    if not self.inBoundary(_point):
+      return False
+    if len(self.points) < self.threshold and not self.child:
+      self.points.append(_point)
+      return True
+    if not self.child: # Subdivide
+      center = Point(0.5*(self.topRight.x + self.bottomLeft.x), 0.5*(self.topRight.y + self.bottomLeft.y))
+      self.child = self.Child(
+        QuadTree(center, self.topRight), # NE
+        QuadTree(Point(center.x, self.bottomLeft.y), Point(self.topRight.x, center.y)), # SE
+        QuadTree(self.bottomLeft, center),
+        QuadTree(Point(self.bottomLeft.x, center.y), Point(center.x, self.topRight.y)))
+    for index in range(4):
+      if self.child[index].insert(_point):
+        return True
+    return False
 
-    '''
-    for location in sw_locations:
-      node.locations.remove(location)
-    for location in nw_locations:
-      node.locations.remove(location)
-    for location in ne_locations:
-      node.locations.remove(location)
-    for location in se_locations:
-      node.locations.remove(location)
-    '''
+  def inBoundary(self, _p):
+    return _p.x <= self.topRight.x and _p.x >= self.bottomLeft.x and _p.y <= self.topRight.y and _p.y >= self.bottomLeft.y
 
-    node.children = [sw_node, nw_node, ne_node, se_node]
-
-  def contains(self, _x, _y, _w, _h, _locations):
-    result = []
-    for location in _locations:
-      if location.x >= _x and location.x <= _x+_w and location.y >= _y and location.y <= _y+_h:
-        result.append(location)
-    return result
-
-  def find_children(self, _node):
-    if not _node.children:
-      return [_node]
-    else:
-      children = []
-      for child in _node.children:
-        children.append(self.find_children(child))
-    return children
-
-  #def graph(self):
-  #  c = self.find_children(self.root)
-  #  print(len(c))
+  def plot(self, _axis):
+    _axis.add_patch(Rectangle((self.bottomLeft.x,self.bottomLeft.y),self.topRight.x - self.bottomLeft.x,self.topRight.y - self.bottomLeft.y,fill=False))
+    if self.child:
+      for index in range(4):
+        self.child[index].plot(_axis)
 
 class Field:
   def __init__(self, _count):
     self.sampleCount = _count
-    self.samplingNodes = []
+    self.samplingNodes = []#[Point(7,2),Point(9,6),Point(4,7),Point(8,1),Point(2,3),Point(5,4)]
 
-    self.samplingNodes = [SamplingLocation(7,2),SamplingLocation(5,4),SamplingLocation(9,6),SamplingLocation(4,7),SamplingLocation(8,1),SamplingLocation(2,3)]
-    #self.distributeRandomSamples(0.1)
+    for i in range(100):
+      randomNode = Point(10*random.random(),10*random.random())
+      self.samplingNodes.append(randomNode)
 
-    self.samplingTree = QuadTree(1, Field_Width, Field_Height, self.samplingNodes)
-    self.samplingTree.subdivide()
+    self.samplingTree = QuadTree(Point(0,0),Point(10,10))
+    for node in self.samplingNodes: self.samplingTree.insert(node)
 
-  def distributeRandomSamples(self, _minSpacing):
-    for i in range(self.sampleCount):
-      randomNode = Field.SamplingNode(random.random(),random.random())
-      self.sampleNodes.append(randomNode)
+    #print(self.samplingTree.points)
+    #print(self.samplingTree.child.ne.points)
+    #print(self.samplingTree.child.se.points)
+    #print(self.samplingTree.child.sw.points)
+    #print(self.samplingTree.child.nw.points)
+
+    #print(self.samplingTree.child.se.child)
 
   def plotNodes(self):
     fig = plt.figure()
@@ -122,7 +92,11 @@ class Field:
     plt.ylim(-0.25,10.25)
     plt.grid()
     ax.set_aspect('equal')
+
+    self.samplingTree.plot(ax)
+
     plt.show()
+
 
 def main():
   print("starting program")
