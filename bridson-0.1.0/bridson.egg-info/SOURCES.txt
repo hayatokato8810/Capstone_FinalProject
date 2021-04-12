@@ -1,0 +1,8 @@
+README.rst
+setup.py
+bridson/__init__.py
+bridson/tests.py
+bridson.egg-info/PKG-INFO
+bridson.egg-info/SOURCES.txt
+bridson.egg-info/dependency_links.txt
+bridson.egg-info/top_level.txt
