@@ -5,6 +5,8 @@ from collections import namedtuple
 from operator import itemgetter
 from pprint import pformat
 
+from bridson import poisson_disc_samples
+
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
@@ -65,8 +67,10 @@ class Field:
     self.sampleCount = _count
     self.samplingNodes = []#[Point(7,2),Point(9,6),Point(4,7),Point(8,1),Point(2,3),Point(5,4)]
 
-    for i in range(100):
-      randomNode = Point(10*random.random(),10*random.random())
+    location = poisson_disc_samples(width=10, height=10, r=1)
+    print(len(location))
+    for i in range(len(location)):
+      randomNode = Point(location[i][0],location[i][1])
       self.samplingNodes.append(randomNode)
 
     self.samplingTree = QuadTree(Point(0,0),Point(10,10))
@@ -80,7 +84,7 @@ class Field:
 
     #print(self.samplingTree.child.se.child)
 
-  def plotNodes(self):
+  def plotNodes(self, _showTree = False):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     for i in range(len(self.samplingNodes)):
@@ -90,10 +94,10 @@ class Field:
     plt.ylabel('Y (m)')
     plt.xlim(-0.25,10.25)
     plt.ylim(-0.25,10.25)
-    plt.grid()
+    #plt.grid()
     ax.set_aspect('equal')
 
-    self.samplingTree.plot(ax)
+    if _showTree: self.samplingTree.plot(ax)
 
     plt.show()
 
@@ -103,7 +107,8 @@ def main():
 
   samplingField = Field(20)
   #print(samplingField.sampleNodes)
-  samplingField.plotNodes()
+  samplingField.plotNodes(True)
+
 
   #samplingField.samplingTree.graph()
 
