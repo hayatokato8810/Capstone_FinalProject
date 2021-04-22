@@ -18,6 +18,8 @@ Field_OriginY = 0
 Field_Width   = 10
 Field_Height  = 10
 
+c = [(1,0,0),(0,1,0),(0,0,1),(0,0,0),(1,0,1),(0,1,1),(1,1,0)]
+
 # Named Tuple Container Class Storing Sampling Location Data
 class Point(namedtuple('Point',['x','y'])):
   def __repr__(self):
@@ -66,8 +68,10 @@ class Field:
   def __init__(self, _count):
     self.sampleCount = _count
     self.samplingNodes = []#[Point(7,2),Point(9,6),Point(4,7),Point(8,1),Point(2,3),Point(5,4)]
+    self.clusterCount = 1
+    self.assignedCluster = []
 
-    location = poisson_disc_samples(width=10, height=10, r=1)
+    location = poisson_disc_samples(width=10, height=10, r=0.5)
     print(len(location))
     for i in range(len(location)):
       randomNode = Point(location[i][0],location[i][1])
@@ -84,20 +88,68 @@ class Field:
 
     #print(self.samplingTree.child.se.child)
 
+  def kCluster(self, _count):
+    self.clusterCount = _count
+    sampleCount = len(self.samplingNodes)
+    self.assignedCluster = np.random.randint(_count,size=sampleCount)
+    print(self.assignedCluster)
+
+    for i in range(10):
+      z = []
+      for class_index in range(_count):
+        cluster = np.where(self.assignedCluster == class_index)[0]
+        mX = 0
+        mY = 0
+        for index in cluster:
+          mX = mX + self.samplingNodes[index].x
+          mY = mY + self.samplingNodes[index].y
+        mX = mX / len(cluster)
+        mY = mY / len(cluster)
+        z.append(Point(mX,mY))
+      for sample_index in range(len(self.samplingNodes)):
+        sample = self.samplingNodes[sample_index]
+        #print(sample)
+        minDist = float('inf')
+        for rep_index in range(_count):
+          group_rep = z[rep_index]
+          D = np.sqrt((group_rep.x - sample.x)*(group_rep.x - sample.x) + (group_rep.y - sample.y)*(group_rep.y - sample.y))
+          if minDist > D:
+            minDist = D
+            self.assignedCluster[sample_index] = rep_index
+    print(self.assignedCluster)
+
+
+
+
+
+
+    #print(len(self.samplingNodes))
+
   def plotNodes(self, _showTree = False):
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    for i in range(len(self.samplingNodes)):
-      plt.scatter(self.samplingNodes[i].x, self.samplingNodes[i].y, color=(0,0,1))
+
+    #for i in range(len(self.samplingNodes)):
+    #  plt.scatter(self.samplingNodes[i].x, self.samplingNodes[i].y, color=(0,0,1))
     plt.title('Plot Representation of Sampling Field')
     plt.xlabel('X (m)')
     plt.ylabel('Y (m)')
     plt.xlim(-0.25,10.25)
     plt.ylim(-0.25,10.25)
-    #plt.grid()
     ax.set_aspect('equal')
 
-    if _showTree: self.samplingTree.plot(ax)
+    for class_index in range(self.clusterCount):
+      group = np.where(self.assignedCluster == class_index)[0]
+      print(group)
+      for i in group:
+
+        plt.scatter(self.samplingNodes[i].x, self.samplingNodes[i].y, color=c[class_index])
+
+    if _showTree:
+      self.samplingTree.plot(ax)
+    else:
+      plt.grid()
+
 
     plt.show()
 
@@ -107,7 +159,10 @@ def main():
 
   samplingField = Field(20)
   #print(samplingField.sampleNodes)
-  samplingField.plotNodes(True)
+  #samplingField.plotNodes(True)
+  samplingField.kCluster(5)
+
+  samplingField.plotNodes()
 
 
   #samplingField.samplingTree.graph()

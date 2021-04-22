@@ -50,6 +50,13 @@ class Tripod():
 		z = (-normal[0] * xx - normal[1] * yy - d) * 1. / normal[2]
 		_axis.plot_wireframe(xx, yy, z)
 
+		# Digging Location Projection
+		gz = (-normal[0] * 0 - normal[1] * 0 - d) * 1. / normal[2]
+		_axis.plot3D([0,0],[0,0],[0,gz],'black', linestyle='dashed')
+		print(abs(gz))
+		print(normal)
+		print(d)
+
 		# Plot Formatting
 		_axis.set_aspect('equal')
 		_axis.set_xlim3d(-2,2)
@@ -63,7 +70,7 @@ def main():
   fig = plt.figure()
   ax = plt.axes(projection='3d')
 
-  robotLeg = Tripod(0.2,25,0,2.5)
+  robotLeg = Tripod(0.3,25,0,2.5)
   robotLeg.leg[0] = 2
   robotLeg.leg[1] = 2.4
   robotLeg.leg[2] = 2.2
