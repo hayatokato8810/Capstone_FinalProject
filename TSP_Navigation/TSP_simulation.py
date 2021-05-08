@@ -1,11 +1,15 @@
 import numpy as np
 import random
+import math
 
 from collections import namedtuple
 from operator import itemgetter
 from pprint import pformat
 
 from bridson import poisson_disc_samples
+
+import acopy
+import networkx as nx
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -71,7 +75,7 @@ class Field:
     self.clusterCount = 1
     self.assignedCluster = []
 
-    location = poisson_disc_samples(width=10, height=10, r=0.5)
+    location = poisson_disc_samples(width=10, height=10, r=1)
     print(len(location))
     for i in range(len(location)):
       randomNode = Point(location[i][0],location[i][1])
@@ -118,14 +122,36 @@ class Field:
             self.assignedCluster[sample_index] = rep_index
     print(self.assignedCluster)
 
+  def aco(self, limit=1):
+    solver = acopy.Solver(rho=.03, q=1)
+    colony = acopy.Colony(alpha=1, beta=3)
+    G = nx.Graph()
 
+    for idx1, node1 in enumerate(self.samplingNodes):
+      for idx2, node2 in enumerate(self.samplingNodes):
+        x1 = node1[0]
+        x2 = node2[0]
+        y1 = node1[1]
+        y2 = node2[1]
+        dist = math.sqrt((x2-x1)**2 + (y2-y1)**2)
+        G.add_edge(idx1, idx2, weight=dist)
 
+    tour = solver.solve(G, colony, limit=limit)
 
+    #print("START ACO")
+    #print(tour.nodes)
+    #print(tour.path)
+    #print("END ACO")
 
+    result = []
+    for idx, pt in enumerate(tour.path):
+      result.append(self.samplingNodes[pt[0]])
+      if idx + 1 == len(tour.path):
+        print(idx+1)
+        result.append(self.samplingNodes[pt[1]])
+    return result
 
-    #print(len(self.samplingNodes))
-
-  def plotNodes(self, _showTree = False):
+  def plotNodes(self, _showTree = False, acoPath = None):
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
@@ -137,6 +163,11 @@ class Field:
     plt.xlim(-0.25,10.25)
     plt.ylim(-0.25,10.25)
     ax.set_aspect('equal')
+
+    if acoPath:
+      plt.plot(*zip(*acoPath), marker = 'o')
+      plt.show()
+      return
 
     for class_index in range(self.clusterCount):
       group = np.where(self.assignedCluster == class_index)[0]
@@ -158,12 +189,13 @@ def main():
   print("starting program")
 
   samplingField = Field(20)
+  path = samplingField.aco(limit=50)
   #print(samplingField.sampleNodes)
   #samplingField.plotNodes(True)
   samplingField.kCluster(5)
 
+  samplingField.plotNodes(acoPath = path)
   samplingField.plotNodes()
-
 
   #samplingField.samplingTree.graph()
 
