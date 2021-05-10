@@ -15,8 +15,8 @@ from matplotlib.patches import Rectangle
 # Global Constants
 Field_OriginX = 0
 Field_OriginY = 0
-Field_Width   = 10
-Field_Height  = 10
+Field_Width   = 20
+Field_Height  = 20
 
 c = [(1,0,0),(0,1,0),(0,0,1),(0,0,0),(1,0,1),(0,1,1),(1,1,0)]
 
@@ -30,7 +30,7 @@ class QuadTree():
 
   Child = namedtuple('Child',['ne','se','sw','nw'])
 
-  def __init__(self, _bottomLeft=Point(0,0), _topRight=Point(0,0), _n=1):
+  def __init__(self, _bottomLeft=Point(0,0), _topRight=Point(0,0), _n=0.5):
     self.points = []
     self.bottomLeft = _bottomLeft
     self.topRight = _topRight
@@ -65,13 +65,18 @@ class QuadTree():
         self.child[index].plot(_axis)
 
 class Field:
-  def __init__(self, _count):
+  def __init__(self, _count, _worldX, _worldY, _baseX=-1, _baseY=-1):
     self.sampleCount = _count
     self.samplingNodes = []#[Point(7,2),Point(9,6),Point(4,7),Point(8,1),Point(2,3),Point(5,4)]
     self.clusterCount = 1
     self.assignedCluster = []
 
-    location = poisson_disc_samples(width=10, height=10, r=0.5)
+    if _baseX == -1 and _baseY == -1:
+      _baseX = _worldX/2
+      _baseY = _worldY/2
+    self.baseCamp = Point(_baseX,_baseY);
+
+    location = poisson_disc_samples(width=_worldX, height=_worldY, r=1)
     print(len(location))
     for i in range(len(location)):
       randomNode = Point(location[i][0],location[i][1])
@@ -94,7 +99,7 @@ class Field:
     self.assignedCluster = np.random.randint(_count,size=sampleCount)
     print(self.assignedCluster)
 
-    for i in range(10):
+    for i in range(20):
       z = []
       for class_index in range(_count):
         cluster = np.where(self.assignedCluster == class_index)[0]
@@ -105,6 +110,10 @@ class Field:
           mY = mY + self.samplingNodes[index].y
         mX = mX / len(cluster)
         mY = mY / len(cluster)
+
+        mX = self.baseCamp.x + 2*np.cos(class_index)
+        mY = self.baseCamp.y + 2*np.sin(class_index)
+
         z.append(Point(mX,mY))
       for sample_index in range(len(self.samplingNodes)):
         sample = self.samplingNodes[sample_index]
@@ -134,33 +143,29 @@ class Field:
     plt.title('Plot Representation of Sampling Field')
     plt.xlabel('X (m)')
     plt.ylabel('Y (m)')
-    plt.xlim(-0.25,10.25)
-    plt.ylim(-0.25,10.25)
+    plt.xlim(-0.25,Field_Width+0.25)
+    plt.ylim(-0.25,Field_Height+0.25)
     ax.set_aspect('equal')
 
     for class_index in range(self.clusterCount):
       group = np.where(self.assignedCluster == class_index)[0]
-      print(group)
       for i in group:
-
-        plt.scatter(self.samplingNodes[i].x, self.samplingNodes[i].y, color=c[class_index])
-
+        plt.scatter(self.samplingNodes[i].x, self.samplingNodes[i].y, color=c[class_index+1])
+    plt.scatter(self.baseCamp.x, self.baseCamp.y,color=c[0])
     if _showTree:
       self.samplingTree.plot(ax)
     else:
       plt.grid()
-
-
     plt.show()
 
 
 def main():
   print("starting program")
 
-  samplingField = Field(20)
+  samplingField = Field(20, Field_Width, Field_Height, 7, 12)
   #print(samplingField.sampleNodes)
   #samplingField.plotNodes(True)
-  samplingField.kCluster(5)
+  samplingField.kCluster(6)
 
   samplingField.plotNodes()
 
