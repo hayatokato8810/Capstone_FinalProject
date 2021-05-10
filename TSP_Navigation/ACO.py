@@ -11,7 +11,7 @@ from bridson import poisson_disc_samples
 # Global Constants
 width = 20
 height = 20
-sampleCapacity = 20
+sampleCapacity = 15
 
 class ACO():
 
@@ -25,13 +25,13 @@ class ACO():
 		sampleCount = len(_locations)
 
 		# Compute the ideal capacity per cluster to equalize the number of samples per expedition
-		clusterCount = (int)(np.ceil(float(sampleCount) / sampleCapacity))
-		if clusterCount > len(self.colorCode):
+		self.clusterCount = (int)(np.ceil(float(sampleCount) / sampleCapacity))
+		if self.clusterCount > len(self.colorCode):
 			sys.exit('Too many samples / requires more clusters')
-		self.clusterCapacity = np.zeros(clusterCount)
-		for i in range(clusterCount):
-			self.clusterCapacity[i] = (int)(sampleCount // clusterCount)
-			if i < sampleCount % clusterCount:
+		self.clusterCapacity = np.zeros(self.clusterCount)
+		for i in range(self.clusterCount):
+			self.clusterCapacity[i] = (int)(sampleCount // self.clusterCount)
+			if i < sampleCount % self.clusterCount:
 				self.clusterCapacity[i] += 1
 
 		print(self.clusterCapacity)
@@ -71,23 +71,26 @@ class ACO():
 		plt.show()
 
 	def clusterize(self):
-		for iter in range(10):
+		for iter in range(100):
 
-			z = np.zeros((len(self.clusterCapacity),2))
+			center_node = np.zeros((len(self.clusterCapacity),2))
 			z_count = np.zeros(len(self.clusterCapacity))
 			for node in self.sampleNodes:
 				for i in range(len(self.clusterCapacity)):
 					if node[2] == i:
-						z[i] += node[0:2]
+						center_node[i] += node[0:2]
 						z_count[i] += 1
-			z[:,0] = np.divide(z[:,0],z_count)
-			z[:,1] = np.divide(z[:,1],z_count)
-			self.clusterCenter = z
+			center_node[:,0] = np.divide(center_node[:,0],z_count)
+			center_node[:,1] = np.divide(center_node[:,1],z_count)
+			self.clusterCenter = center_node
 
 			#np.random.shuffle(self.sampleNodes)
 
+
+			#--=====================================================
+
 			clusterOccupancyCount = np.zeros(len(self.clusterCapacity))
-			
+			'''
 			# New Version
 			allDistances = np.zeros((len(self.clusterCapacity),len(self.sampleNodes),2))
 			for clusterIndex in range(len(self.clusterCapacity)):
@@ -129,6 +132,7 @@ class ACO():
 			print(self.clusterCapacity)
 			# Working Version of Decent Clustering
 			'''
+			'''
 			for node in self.sampleNodes:
 				dist = np.zeros((len(self.clusterCapacity),2))
 				for i in range(len(dist)):
@@ -143,12 +147,68 @@ class ACO():
 						node[2] = index
 						clusterOccupancyCount[index] += 1
 						break
-			'''
+						'''
+
+			delta = np.zeros((len(self.sampleNodes),3))
+			for nodeIndex in range(len(self.sampleNodes)):
+				node = self.sampleNodes[nodeIndex,:]
+				currentID = (int)(node[2])
+				currentDist = np.linalg.norm(center_node[currentID] - node[0:2])
+				maxDelta = -np.inf
+				maxDeltaID = currentID
+				for clusterID in range(self.clusterCount):
+					# (Positive means improvement)
+					temp_delta = currentDist - np.linalg.norm(center_node[clusterID] - node[0:2])
+					if maxDelta < temp_delta and temp_delta != 0:
+						maxDelta = temp_delta
+						maxDeltaID = clusterID
+				delta[nodeIndex,0] = nodeIndex
+				delta[nodeIndex,1] = maxDeltaID
+				delta[nodeIndex,2] = maxDelta
+			delta = delta[np.argsort(delta[:,2])[::-1]]
+
+			#print(len(delta))
+			while delta[0,2] > 0:
+				#print('delta',delta[0,2])
+				#for j in range(len(delta)):
+				j = 0
+				while j < len(delta):
+					#print('j',j)
+					#print('sampleID',delta[j,0])
+					#print('clusterID',self.sampleNodes[(int)(delta[j,0]),2])
+					clusterID = self.sampleNodes[(int)(delta[j,0]),2]
+
+
+					if clusterID == delta[0,1]:
+						if delta[0,2] > abs(delta[j,2]): # if it results in improvement
+							firstID = (int)(delta[0,0])
+							secondID = (int)(delta[j,0])
+							print('swap',clusterID,firstID,self.sampleNodes[firstID,2], secondID,self.sampleNodes[secondID,2])
+
+
+							self.sampleNodes[secondID,2] = self.sampleNodes[firstID,2]
+							self.sampleNodes[firstID,2] = clusterID
+							delta = np.delete(delta,[j],axis=0)
+							print(delta)
+					j += 1
+
+				delta = np.delete(delta,[0],axis=0)
+
+
+
+
+				#print(delta[i,2])
+				#i += 1
+
+
+
+			print(delta)
+			
 
 def main():
 	print("starting program")
 
-	locations = np.array(poisson_disc_samples(20, 20, r=1.5))
+	locations = np.array(poisson_disc_samples(20, 20, r=2))
 	np.random.shuffle(locations)
 	
 	antSystem = ACO(locations,20,20)
