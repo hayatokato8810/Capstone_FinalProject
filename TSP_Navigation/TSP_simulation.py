@@ -25,6 +25,12 @@ Field_Height  = 10
 
 c = [(1,0,0),(0,1,0),(0,0,1),(0,0,0),(1,0,1),(0,1,1),(1,1,0)]
 
+coords = []
+globalFig = None
+globalAx = None
+globalField = None
+cid = 0
+
 # Named Tuple Container Class Storing Sampling Location Data
 class Point(namedtuple('Point',['x','y'])):
   def __repr__(self):
@@ -85,8 +91,7 @@ class Field:
       self.samplingNodes.append(randomNode)
 
 
-    self.samplingTree = QuadTree(Point(0,0),Point(10,10))
-    for node in self.samplingNodes: self.samplingTree.insert(node)
+    self.insertQuad()
 
     #print(self.samplingTree.points)
     #print(self.samplingTree.child.ne.points)
@@ -95,6 +100,10 @@ class Field:
     #print(self.samplingTree.child.nw.points)
 
     #print(self.samplingTree.child.se.child)
+
+  def insertQuad(self):
+    self.samplingTree = QuadTree(Point(0,0),Point(10,10))
+    for node in self.samplingNodes: self.samplingTree.insert(node)
 
   def kCluster(self, _count):
     self.clusterCount = _count
@@ -161,8 +170,9 @@ class Field:
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    #for i in range(len(self.samplingNodes)):
-    #  plt.scatter(self.samplingNodes[i].x, self.samplingNodes[i].y, color=(0,0,1))
+    if testing:
+      for i in range(len(self.samplingNodes)):
+        plt.scatter(self.samplingNodes[i].x, self.samplingNodes[i].y, color=(0,0,1))
     plt.title('Plot Representation of Sampling Field')
     plt.xlabel('X (m)')
     plt.ylabel('Y (m)')
@@ -187,6 +197,7 @@ class Field:
           axs[row,col].plot(*zip(*path), marker = 'o')
         plt.show()
       else:
+        plt.title('ACO Path Solution of Sampling Field')
         plt.plot(*zip(*acoPath), marker = 'o')
         plt.show()
       return
@@ -206,26 +217,70 @@ class Field:
 
     plt.show()
 
+def onclick(event):
+  global ix, iy
+  global coords
+  global globalAx
+
+  ix, iy = event.xdata, event.ydata
+  print('x = %d, y = %d'%(ix, iy))
+
+  if ix and iy:
+    coords.append(Point(ix, iy))
+
+    globalAx.scatter(*zip(*coords), color=(0,0,1))
+    plt.show()
+
+  if len(coords) == 20:
+    print(coords)
+    globalFig.canvas.mpl_disconnect(cid)
+    global globalField
+    globalField = Field(20)
+    globalField.samplingNodes = coords
+    globalField.insertQuad()
+    globalField.plotNodes(_showTree=True, testing=True)
+    coords = []
+    plt.close(globalFig)
+
+  return coords
+
+def emptyPlot():
+  global globalFig
+  globalFig = plt.figure()
+  global globalAx
+  globalAx = globalFig.add_subplot(111)
+  plt.xlim(-0.25,10.25)
+  plt.ylim(-0.25,10.25)
+  plt.title("Select 20 points")
+  globalAx.plot()
+
+  global cid
+  cid = globalFig.canvas.mpl_connect('button_press_event', onclick)
+  plt.show()
+
+def get_globalField():
+  return globalField
 
 def main():
   print("starting program")
 
-  samplingField = Field(20)
+  #samplingField = Field(20)
+  emptyPlot()
   #samplingField.samplingNodes = [(0.5131056798669771, 0.189988713306955), (4.424680382500854, 0.23245640554668934), (7.483040641931, 0.0946238632236509), (1.8606118342652715, 0.766060487728716), (6.257158323659654, 0.986532689453962), (0.6497661227851843, 1.659320571614563), (3.0474567475569545, 1.828477470184365), (5.421975603438306, 1.7754921958946748), (7.4808293389415415, 1.986726966448749), (8.509483193382506, 1.4490188354311915), (0.0634679531576543, 2.6347865804033175), (1.7724831159035581, 2.451870667522988), (9.958286495576061, 2.7976886124615605), (2.770813523641103, 3.5302246878506858), (4.0000697227335476, 3.2382173028594026), (5.818643785541418, 3.3106038075324022), (7.001644357811106, 2.964307447418969), (8.28588116561309, 3.1499990602392423), (0.7186139189407335, 3.5947924446732813), (1.8985343684040883, 4.069567709570926), (7.9248086346724085, 4.14734739932317), (0.33423603515145217, 4.83021996808751), (3.4261617333137417, 4.53011352610069), (5.393569841329768, 4.777079692484352), (8.762796661960854, 4.717445033078811), (3.586992775879593, 5.561545562448422), (6.370343180968799, 5.08121962669655), (1.0046001092387147, 5.918642589578775), (2.3194077022614996, 5.873534971589171), (5.310402529441646, 6.004211495244074), (8.456157236031007, 5.889281145246091), (2.3801605330354314, 6.941999727982097), (6.268972455012896, 6.6637731787384045), (1.0909827025791494, 7.268333144368183), (3.669125093444218, 7.580526112384653), (4.861157853640513, 7.106190348310623), (7.245937813960419, 7.178773753230456), (0.3207156196358927, 8.124266174607374), (6.517160335892738, 7.996864140048311), (8.477549702453208, 7.885493670252149), (2.415188783152793, 8.549679969615786), (4.065081124044053, 8.531511376281635), (5.441040733911133, 9.0766946299141), (9.963865003363756, 8.80306841907342), (4.648970029443678, 9.786484801970843), (6.810362191264805, 9.579257026581413), (8.270320244060807, 9.573189116397906), (3.647256667469297, 9.899845438489988)]
-  path_1 = samplingField.aco(limit=1)
-  path_10 = samplingField.aco(limit=10)
-  path_25 = samplingField.aco(limit=25)
-  path_50 = samplingField.aco(limit=50)
-  path_100 = samplingField.aco(limit=100)
-  path_150 = samplingField.aco(limit=150)
-  path_200 = samplingField.aco(limit=200)
-  path_250 = samplingField.aco(limit=250)
-  path_300 = samplingField.aco(limit=300)
+  #path_1 = samplingField.aco(limit=1)
+  #path_10 = samplingField.aco(limit=10)
+  #path_25 = samplingField.aco(limit=25)
+  #path_50 = samplingField.aco(limit=50)
+  #path_100 = samplingField.aco(limit=100)
+  #ath_150 = samplingField.aco(limit=150)
+  #path_200 = samplingField.aco(limit=200)
+  #path_250 = samplingField.aco(limit=250)
+  #path_300 = samplingField.aco(limit=300)
   #print(samplingField.sampleNodes)
   #samplingField.plotNodes(True)
   #samplingField.kCluster(5)
 
-  samplingField.plotNodes(acoPath = [path_1,path_10,path_25,path_50,path_100,path_150,path_200,path_250,path_300], testing=[1,10,25,50,100,150,200,250,300])
+  #samplingField.plotNodes(acoPath = [path_1,path_10,path_25,path_50,path_100,path_150,path_200,path_250,path_300], testing=[1,10,25,50,100,150,200,250,300])
   #samplingField.plotNodes()
 
   #samplingField.samplingTree.graph()
