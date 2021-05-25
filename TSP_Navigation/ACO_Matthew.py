@@ -1,5 +1,7 @@
 import numpy as np
 import random
+import math
+import time
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -8,19 +10,19 @@ from matplotlib.patches import Rectangle
 
 from bridson import poisson_disc_samples
 
+import acopy
 import networkx as nx
 
 # Global Constants
 width = 20
 height = 20
-sampleCapacity = 20
 
 class ACO():
 
 	colorCode = np.array([(1,0,0),(1,0.5,0),(1,1,0),(0,1,0),(0,1,1),(0,0.5,1),(0,0,1),(0.5,0,1),(1,0,1),(0.5,0.5,0.5),(0,0,0)])
 	np.random.shuffle(colorCode)
 
-	def __init__(self, _locations, _x, _y):
+	def __init__(self, _locations, _x, _y, sampleCapacity = 15):
 		self.width = _x
 		self.height = _y
 
@@ -51,8 +53,18 @@ class ACO():
 		self.sampleNodes = np.concatenate((_locations,clusterID.T),axis=1)
 		self.clusterCenter = np.zeros((len(self.clusterCapacity),2))
 
+		self.campIndex = 0
 		self.path = range(sampleCount)
 		self.pheromone = np.zeros((sampleCount,sampleCount))
+
+	def setCamp(self, coord):
+		pos = np.delete(self.sampleNodes,2,axis=1)
+		idx = np.where((pos == coord).all(axis=1))
+		self.campIndex = int(idx[0][0])
+		print(self.campIndex)
+
+	def updateSamples(self, location, x, y, sampleCapacity):
+		self.__init__(location,x,y,sampleCapacity=sampleCapacity)
 
 	def plot(self):
 		fig = plt.figure()
@@ -73,10 +85,8 @@ class ACO():
 		plt.show()
 
 	def clusterize(self):
-		for iter in range(1000):
-			print(iter)
+		for iter in range(100):
 
-			# Compute Center Nodes
 			center_node = np.zeros((len(self.clusterCapacity),2))
 			z_count = np.zeros(len(self.clusterCapacity))
 			for node in self.sampleNodes:
@@ -88,11 +98,12 @@ class ACO():
 			center_node[:,1] = np.divide(center_node[:,1],z_count)
 			self.clusterCenter = center_node
 
-			#np.random.shuffle(self.sampleNodes)
+
+			#--=====================================================
 
 			clusterOccupancyCount = np.zeros(len(self.clusterCapacity))
 
-			# Compute Delta for each Element
+
 			delta = np.zeros((len(self.sampleNodes),3))
 			for nodeIndex in range(len(self.sampleNodes)):
 				node = self.sampleNodes[nodeIndex,:]
@@ -112,7 +123,7 @@ class ACO():
 			delta = delta[np.argsort(delta[:,2])[::-1]]
 
 			#print(len(delta))
-			while len(delta) > 0 and delta[0,2] > 0:
+			while delta[0,2] > 0:
 				#print('delta',delta[0,2])
 				#for j in range(len(delta)):
 				j = 0
@@ -139,30 +150,91 @@ class ACO():
 				delta = np.delete(delta,[0],axis=0)
 
 
-
-
-				#print(delta[i,2])
-				#i += 1
-
-
-
-
 			#print(delta)
 			
+	def compute_aco(self, limit=100):
+		solver = acopy.Solver(rho=.03, q=1)
+		colony = acopy.Colony(alpha=1, beta=3)
+		tours = []
+		baseCamp = self.sampleNodes[self.campIndex]
+		print(baseCamp)
+		baseCampIdx = baseCamp[2]
+		baseCamp = baseCamp[:2]
+
+		cluster_nodes = dict.fromkeys(range(self.clusterCount))
+		for k, v in cluster_nodes.items():
+			if k == baseCampIdx:
+				cluster_nodes[k] = []
+			else:
+				cluster_nodes[k] = [baseCamp]
+		for sample in self.sampleNodes:
+			cluster_nodes[sample[2]].append(sample[:2])
+
+
+		for k, v in cluster_nodes.items():
+			nodes = cluster_nodes[k]
+			G = nx.Graph()
+			for idx1, node1 in enumerate(nodes):
+				for idx2, node2 in enumerate(nodes):
+					x1 = node1[0]
+					x2 = node2[0]
+					y1 = node1[1]
+					y2 = node2[1]
+					dist = math.sqrt((x2-x1)**2 + (y2-y1)**2)
+					G.add_edge(idx1, idx2, weight=dist)
+
+			start_time = time.time()
+			tour = solver.solve(G, colony, limit=limit)
+			tours.append(tour.path)
+			solve_time = time.time() - start_time
+			print("--- %s iterations took %s seconds with cost of %s ---" % (limit,round(solve_time,2), round(tour.cost,2)))
+
+		results = []
+		for cluster, tour in enumerate(tours):
+			nodes = cluster_nodes[cluster]
+			result = []
+			for idx, pt in enumerate(tour):
+				node_to_point = nodes[pt[0]].tolist()
+				result.append(tuple(node_to_point + [cluster]))
+				if idx + 1 == len(tour):
+					node_to_point = nodes[pt[1]].tolist()
+					result.append(tuple(node_to_point + [cluster]))
+			results.append(result)
+		return np.array(results)
+
+				
 
 def main():
 	print("starting program")
 
-	locations = np.array(poisson_disc_samples(20, 20, r=1.2))
+	locations = np.array(poisson_disc_samples(20, 20, r=2))
 	np.random.shuffle(locations)
-	print(len(locations))
 	
 	antSystem = ACO(locations,20,20)
 	antSystem.plot()
+	print(locations)
+	
+	antSystem = ACO(locations,20,20)
 	antSystem.clusterize()
 	antSystem.plot()
+	path = antSystem.compute_aco()
+	path = path.tolist()
+	for p in path:
+		x,y,c = zip(*p)
+		plt.plot(x,y, marker = 'o')
+	plt.show()
+
+	print(path)
+
+	print()
+
+	trajectory = []
+	for p in path:
+		print(p)
+	#antSystem.plot()
+	#antSystem.clusterize()
+	#antSystem.plot()
 
 
 if __name__ == "__main__":
 	main()
-

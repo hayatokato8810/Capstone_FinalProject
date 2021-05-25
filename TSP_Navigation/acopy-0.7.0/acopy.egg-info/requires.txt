@@ -1,0 +1,7 @@
+click~=7.1
+networkx~=2.4
+tsplib95~=0.7.0
+
+[plot]
+matplotlib~=3.2
+pandas~=1.0

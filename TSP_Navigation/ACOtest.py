@@ -76,7 +76,7 @@ def evaluatePath(path):
     cost = cost + dist*1
   return cost
 
-def getPath():
+#def getPath():
 
 
 if __name__ == "__main__":
