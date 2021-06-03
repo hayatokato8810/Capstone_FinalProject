@@ -63,6 +63,9 @@ class ACO():
 		self.campIndex = int(idx[0][0])
 		print(self.campIndex)
 
+	def returnCamp(self):
+		return self.sampleNodes[self.campIndex]
+
 	def updateSamples(self, location, x, y, sampleCapacity):
 		self.__init__(location,x,y,sampleCapacity=sampleCapacity)
 
