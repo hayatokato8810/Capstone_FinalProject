@@ -12,20 +12,20 @@ import networkx as nx
 
 import sys, argparse
 import json
-import acopy
 
-import ACO_Matthew as acoM
+import ACO as aco
+import Clustering as cluster
 
 from itertools import permutations
 
 scale_avg = 5
 scale_dis = 0
-wcost_avg = 0.9
+wcost_avg = 1.1
 wcost_dis = 0
 
 class NavigationSystem():
 
-	def __init__(self, _basecamp, _locations, _mx=-1, _my=-1):
+	def __init__(self, _basecamp, _locations, _mx=-1, _my=-1, _alpha=1, _beta=1):
 		self.basecamp = _basecamp
 		self.sampleNodes = _locations
 		if _mx == -1 or _my == -1:
@@ -33,6 +33,93 @@ class NavigationSystem():
 		else:
 			self.map_width = _mx
 			self.map_height = _my
+
+		fig = plt.figure()
+		ax = fig.add_subplot(111)
+		ax.set_axisbelow(True)
+		ax.set_aspect('equal')
+		plt.title('Plot Representation of Sampling Field')
+		plt.xlabel('X (m)')
+		plt.ylabel('Y (m)')
+		plt.xlim([0,self.map_width])
+		plt.ylim([0,self.map_height])
+		plt.grid()
+		plt.scatter(self.basecamp[0],self.basecamp[1],color=(1,0,0),edgecolors=(0,0,0))
+		for node in self.sampleNodes:
+			plt.scatter(node[0],node[1],color=(0,0,1),edgecolors=(0,0,0))
+		plt.show()
+
+
+		print(f'Sample Count: {len(self.sampleNodes)}')
+
+
+
+		self.Cluster = cluster.Clustering(_locations, _alpha, _beta, 10)
+		self.sortedLocation = self.Cluster.sampleNodes
+
+
+
+		trajectory = np.empty((1,2))
+		for clusterID in range(self.Cluster.clusterCount):
+			clusterLocations = []
+			for node in self.sortedLocation:
+				if node[2] == clusterID:
+					clusterLocations.append(node[0:2].tolist())
+			acoSystem = aco.ACO(self.basecamp, np.array(clusterLocations), _alpha, _beta, 0)
+			result = acoSystem.computeBestPath() 
+
+			#print(result[0])
+
+			clusterLocations = np.insert(clusterLocations, 0, self.basecamp, axis=0)
+
+			print(result[1])
+			print(len(clusterLocations))
+
+			fig = plt.figure()
+			ax = fig.add_subplot(111)
+			ax.set_axisbelow(True)
+			ax.set_aspect('equal')
+			plt.title('Plot Representation of Sampling Field')
+			plt.xlabel('X (m)')
+			plt.ylabel('Y (m)')
+			plt.xlim([0,self.map_width])
+			plt.ylim([0,self.map_height])
+			plt.grid()
+
+			colorScale = np.arange(len(result[1])) / (len(result[1]))
+
+			for index in range(len(result[1])-1):
+				#pathID = result[1][index]
+				#print(result[1][index])
+
+				pathID1 = result[1][index]
+				pathID2 = result[1][index+1]
+				#print(clusterLocations[result[1][pathID],:])
+				node1 = clusterLocations[pathID1]
+				node2 = clusterLocations[pathID2]
+				plt.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index],1-colorScale[index],0))
+			node1 = clusterLocations[pathID2]
+			node2 = clusterLocations[0]
+			plt.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index+1],1-colorScale[index+1],0))
+
+			trajectory = np.append(trajectory, clusterLocations, axis=0)
+
+				#print(clusterLocations[pathID])
+			#print(clusterLocations)
+
+			plt.show()
+
+		print(trajectory)
+		print(len(trajectory))
+
+
+
+		
+
+
+
+
+		
 
 	#def computeBestPath(self):
 
@@ -128,66 +215,30 @@ def main():
 	wcost = 0
 	while True:
 		wcost = random.normalvariate(wcost_avg, wcost_dis)
-		if wcost <= 1:
+		if wcost <= wcost_avg:
 			break
 
+	# Generate a random samo=pling location
 	[locations, scale] = generateLocations(scale)
 
-	print(f'Scale: {scale}')
-	print(f'Wcost: {wcost}')
-	print(f'Sample Count: {len(locations)}')
+	#print(f'Scale: {scale}')
+	#print(f'Wcost: {wcost}')
+	#print(f'Sample Count: {len(locations)}')
 
-	navigationSystem = NavigationSystem(locations[0,:],locations[1:,:],50,50)
-	plot(locations)
-	#[maxScore, bestPath] = navigationSystem.bruteForce(_alpha=scale, _beta=wcost)
+	#print(locations)
 
-	#s = navigationSystem.evaluatePath(locations, _alpha=scale, _beta=wcost)
-	#print(f'Score: {s}')
-	#print(f'Max Score: {maxScore}')
+	basecamp = locations[0,:]
+	locations = locations[1:,:]
 
-	#navigationSystem.plot(bestPath)
+	#print(locations)
+	#print(basecamp)
 
-
-
-	antSystem = acoM.ACO(locations,50,50)
-	antSystem.clusterize()
-	antSystem.plot()
-	#path = antSystem.compute_aco()
-	#path = path.tolist()
-	#for p in path:
-	#	x,y,c = zip(*p)
-	#	plt.plot(x,y, marker = 'o')
-	#plt.show()
-
-	'''
-	centerPos = locations[antSystem.campIndex,:]
-
-	navigationSystem = NavigationSystem(locations[0,:],locations[1:,:],50,50)
-
-	totalscore = 0;
-	for p in path:
-		temp = np.array(p)
-		p = np.delete(temp,2,axis=1)
-		p = p.tolist()
-		p.pop()
-
-		route = np.array(p)
-		while route[0].tolist() != centerPos.tolist():
-			route = np.roll(route,1)
-		route = np.insert(route, len(route), centerPos,0)
-
-		#print(route)
-
-		navigationSystem.plot(route)
-		plt.show()
+	navigationSystem = NavigationSystem(basecamp, locations,50,50, _alpha=scale, _beta=wcost)
+	#plot(locations)
 
 
-		s = navigationSystem.evaluatePath(route)
-		totalscore += s
-		print(s)
-	print('------------------------')
-	print(f'total = {totalscore}')
-	'''
+
+
 
 
 if __name__ == "__main__":
