@@ -25,7 +25,10 @@ wcost_dis = 0
 
 class NavigationSystem():
 
-	def __init__(self, _basecamp, _locations, _mx=-1, _my=-1, _alpha=1, _beta=1):
+	# Alpha = scale of the map, the r value used to generate the poisson disc samples
+	# Beta = the weight cost used to change the ACO behavior:
+	# 	Beta value = 1 means there is no penalty for 
+	def __init__(self, _basecamp, _locations, _mx=-1, _my=-1, _alpha=1, _beta=1, _gamma=10):
 		self.basecamp = _basecamp
 		self.sampleNodes = _locations
 		if _mx == -1 or _my == -1:
@@ -33,7 +36,9 @@ class NavigationSystem():
 		else:
 			self.map_width = _mx
 			self.map_height = _my
+		self.sampleCapacity = _gamma
 
+		# Plot an overview of all sample nodes in a field
 		fig = plt.figure()
 		ax = fig.add_subplot(111)
 		ax.set_axisbelow(True)
@@ -44,37 +49,43 @@ class NavigationSystem():
 		plt.xlim([0,self.map_width])
 		plt.ylim([0,self.map_height])
 		plt.grid()
+		# Plot the base camp location in red
 		plt.scatter(self.basecamp[0],self.basecamp[1],color=(1,0,0),edgecolors=(0,0,0))
+		# Plot the other sampling locations in blue
 		for node in self.sampleNodes:
 			plt.scatter(node[0],node[1],color=(0,0,1),edgecolors=(0,0,0))
+		# Show the plot
 		plt.show()
-
 
 		print(f'Sample Count: {len(self.sampleNodes)}')
 
-
-
-		self.Cluster = cluster.Clustering(_locations, _alpha, _beta, 10)
+		# Group the sample nodes into their respective clusters
+		# Clustering dictated by the maximum number of samples a person can carry
+		self.Cluster = cluster.Clustering(_locations, _alpha, _beta, _gamma = self.sampleCapacity)
+		# sortedLocation returns all the node locations with an additional column that indexes each node into a respective cluster ID
 		self.sortedLocation = self.Cluster.sampleNodes
 
-
-
-		trajectory = np.empty((1,2))
+		# Iterate through each cluster
 		for clusterID in range(self.Cluster.clusterCount):
 			clusterLocations = []
+			# Create a subset of nodes that are from the same cluster
 			for node in self.sortedLocation:
 				if node[2] == clusterID:
 					clusterLocations.append(node[0:2].tolist())
-			acoSystem = aco.ACO(self.basecamp, np.array(clusterLocations), _alpha, _beta, 0)
+			# Pass the subset into ACO to solve for the best path within the cluster
+			# Make sure to give it a starting location
+			acoSystem = aco.ACO(self.basecamp, np.array(clusterLocations), _alpha, _beta)
+			# Result retrieves the computation result after running the ant colony optimization
 			result = acoSystem.computeBestPath() 
 
-			#print(result[0])
-
+			# Add the basecamp to the list of sampling locations (indexed by the number 0)
+			# result[0] = score of this particular trajectory 
+			#   (use to compute overall estimate time of all trajectories)
+			# result[1] = node index of the path 
+			#   (index 0 = basecamp, other numbers indexed based on the order given in clusterLocations)
 			clusterLocations = np.insert(clusterLocations, 0, self.basecamp, axis=0)
-
-			print(result[1])
-			print(len(clusterLocations))
-
+			
+			# Setup the plot figure
 			fig = plt.figure()
 			ax = fig.add_subplot(111)
 			ax.set_axisbelow(True)
@@ -86,42 +97,25 @@ class NavigationSystem():
 			plt.ylim([0,self.map_height])
 			plt.grid()
 
-			colorScale = np.arange(len(result[1])) / (len(result[1]))
+			# Color gradiant used to change color throughout the path
+			# Divided by maximum sample capacity
+			colorScale = np.arange(len(result[1])) / (self.sampleCapacity)
 
+			# Go through each connection between nodes in the result
 			for index in range(len(result[1])-1):
-				#pathID = result[1][index]
-				#print(result[1][index])
-
 				pathID1 = result[1][index]
 				pathID2 = result[1][index+1]
-				#print(clusterLocations[result[1][pathID],:])
+				# Current node
 				node1 = clusterLocations[pathID1]
+				# Next node
 				node2 = clusterLocations[pathID2]
+				# Draw an arrow between the two nodes
 				plt.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index],1-colorScale[index],0))
+			# Repeat but this time return back to basecamp
 			node1 = clusterLocations[pathID2]
 			node2 = clusterLocations[0]
 			plt.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index+1],1-colorScale[index+1],0))
-
-			trajectory = np.append(trajectory, clusterLocations, axis=0)
-
-				#print(clusterLocations[pathID])
-			#print(clusterLocations)
-
 			plt.show()
-
-		print(trajectory)
-		print(len(trajectory))
-
-
-
-		
-
-
-
-
-		
-
-	#def computeBestPath(self):
 
 	# alpha determines power of the fraction (a > 0)
 	def evaluatePath(self, _locations, _alpha=1, _beta=1):
@@ -220,6 +214,8 @@ def main():
 
 	# Generate a random samo=pling location
 	[locations, scale] = generateLocations(scale)
+
+
 
 	#print(f'Scale: {scale}')
 	#print(f'Wcost: {wcost}')

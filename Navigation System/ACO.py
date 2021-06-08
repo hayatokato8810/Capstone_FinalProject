@@ -12,10 +12,9 @@ iteration_count = 2000
 #weight_constant = 1.3
 
 class ACO():
-	def __init__(self, _basecamp, _locations, _alpha, _beta, _gamma):
+	def __init__(self, _basecamp, _locations, _alpha, _beta):
 		self.ALPHA = _alpha # Map Scale Constant
 		self.BETA  = _beta  # 
-		self.GAMMA = _gamma # 
 
 		#self.basecamp = _basecamp
 		#self.sampleNodes = _locations
