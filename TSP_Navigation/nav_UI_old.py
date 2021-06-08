@@ -1,18 +1,13 @@
 from tkinter import *
-from ACO import *
+from ACO_depreciated import *
 
 import math
-import numpy as np
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from bridson import poisson_disc_samples
-
-import NavigationSystem as nav
-import ACO as aco
-import Clustering as cluster
 
 class NavUI:
 	def __init__(self):
@@ -21,6 +16,7 @@ class NavUI:
 		self.fig = None
 		self.canvas = None
 		self.cid = None
+		self.field = None
 		self.path = None
 		self.base_root = None
 		self.empty_root = None
@@ -31,7 +27,6 @@ class NavUI:
 		self.demo_pos = None
 		self.ani_x = []
 		self.ani_y = []
-		self.colorArray = ["tab:blue","tab:red","tab:green","tab:orange","tab:purple","tab:cyan","tab:gray","tab:brown","tab:pink"]
 
 		self.root = Tk()
 		self.root.wm_title("Navigation")  
@@ -79,16 +74,12 @@ class NavUI:
 		self.demo = Button(self.root, text="Demo", command=self.demo, width = 20)
 		self.demo.grid(column=3, row=4, columnspan = 2)
 
-		self.Aco = None
-		self.Cluster = None
-		self.navSys = None
+		self.field = None
 		self.n_sample_carry = 5
 		self.n_nodes = 20
 		self.x = 20
 		self.y = 20
 		self.base = None
-		self.scale = 2
-		self.beta = 1.1
 
 	def windowMsg(self,msg):
 		confirm = Tk()
@@ -107,18 +98,12 @@ class NavUI:
 		self.windowMsg("Settings updated.")
 
 	def generate_nodes(self):
-		[locations, scale] = nav.generateLocations(self.x,self.y,2)
-		self.coords = locations.tolist()
-		self.base = self.coords[0]
-
-		'''
 		self.base = None
 		coords = poisson_disc_samples(self.x, self.y, r=2)
 		self.coords = coords
 		locations = np.array(coords)
 		np.random.shuffle(locations)
 		self.field = ACO(locations, self.x, self.y, sampleCapacity = self.n_sample_carry)
-		'''
 
 		self.windowMsg("Generated nodes.")
 
@@ -142,7 +127,7 @@ class NavUI:
 		self.canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
 
 	def select_base(self):
-		if self.coords:
+		if self.field:
 			self.base_root = Tk()
 
 			self.fig = plt.figure()
@@ -161,90 +146,6 @@ class NavUI:
 			self.windowMsg("You need to select points before selecting a base.")
 
 	def aco_solve(self):
-		locations = self.coords
-		#trajectory = np.empty((1,2))
-		self.path = []
-		idx = 0
-
-		for i, pt in enumerate(self.coords):
-			if pt == self.base:
-				idx = i
-		locations.pop(idx)
-
-		self.Cluster = cluster.Clustering(locations, self.scale, self.beta, self.n_sample_carry)
-		sortedLocation = self.Cluster.sampleNodes
-
-		plotMax = 4
-		if self.Cluster.clusterCount > 8:
-			plotMax = 9
-		plotRowCol = int(math.sqrt(plotMax))
-
-		plot_root = Tk()
-		plot_root.geometry('1000x900')
-		fig = plt.figure()
-		fig.suptitle('Individual Cluster Plots')
-		canvas = FigureCanvasTkAgg(fig, master = plot_root)
-		
-		newWin = False
-
-		for clusterID in range(self.Cluster.clusterCount):
-			if newWin:
-				plot_root = Tk()
-				plot_root.geometry('1000x900')
-				fig = plt.figure()
-				fig.suptitle('Individual Cluster Plots')
-				canvas = FigureCanvasTkAgg(fig, master = plot_root)
-				
-				newWin = False
-
-			clusterIdx = clusterID%plotMax + 1
-			if clusterIdx == plotMax:
-				newWin = True
-
-			clusterLocations = []
-			for node in sortedLocation:
-				if node[2] == clusterID:
-					clusterLocations.append(node[0:2].tolist())
-			self.Aco = aco.ACO(self.base, np.array(clusterLocations), self.scale, self.beta)
-			result = self.Aco.computeBestPath() 
-
-
-			clusterLocations = np.insert(clusterLocations, 0, self.base, axis=0)
-			pathPart = []
-			for pt in clusterLocations.tolist():
-				pathPart.append((pt[0],pt[1],clusterID))
-
-			self.path = self.path + pathPart
-
-			ax = fig.add_subplot(plotRowCol, plotRowCol, clusterIdx)
-
-			ax.set_xlim([0,self.x])
-			ax.set_ylim([0,self.y])
-			ax.set_xlabel('X (m)')
-			ax.set_ylabel('Y (m)')
-			ax.set_axisbelow(True)
-			ax.set_aspect('equal')
-			ax.grid()
-
-			colorScale = np.arange(len(result[1])) / (self.n_sample_carry)
-
-			# Go through each connection between nodes in the result
-			for index in range(len(result[1])-1):
-				pathID1 = result[1][index]
-				pathID2 = result[1][index+1]
-				# Current node
-				node1 = clusterLocations[pathID1]
-				# Next node
-				node2 = clusterLocations[pathID2]
-				# Draw an arrow between the two nodes
-				ax.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index],1-colorScale[index],0))
-			# Repeat but this time return back to basecamp
-			node1 = clusterLocations[pathID2]
-			node2 = clusterLocations[0]
-			ax.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index+1],1-colorScale[index+1],0))
-			canvas.draw()
-			canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
-		'''
 		self.field.updateSamples(self.coords,self.x,self.y,self.n_sample_carry)
 		self.field.clusterize()
 		if self.base:
@@ -252,42 +153,26 @@ class NavUI:
 		path = self.field.compute_aco()
 		path = path.tolist()
 		self.path = path
-		'''
-
-		'''
-		plot_root = Tk()
-		plot_root.geometry('500x500')
-		fig = plt.figure()
-		fig.suptitle('Total Cluster Plots')
-		canvas = FigureCanvasTkAgg(fig, master = plot_root)
-		ax = fig.add_subplot(111)
-		
+		print("PATH")
+		print("PATH")
+		print("PATH")
 		print(self.path)
-		x,y,c = zip(*self.path)
-		ax.set_xlim(-0.1*self.x,1.1*self.x)
-		ax.set_ylim(-0.1*self.y,1.1*self.y)
-		ax.plot(x,y, marker = 'o')
-		ax.set_aspect('equal')
+
+		plot_root = Tk()
+		fig = plt.figure()
+		ax = fig.add_subplot(111)
+		canvas = FigureCanvasTkAgg(fig, master = plot_root)
+
+		for p in path:
+			x,y,c = zip(*p)
+			ax.set_xlim(-0.1*self.x,1.1*self.x)
+			ax.set_ylim(-0.1*self.y,1.1*self.y)
+			ax.plot(x,y, marker = 'o')
+			ax.set_aspect('equal')
+		#print(path)
 
 		canvas.draw()
 		canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
-		'''
-
-	def calcScale(self):
-		minDist = -1
-		print(self.coords)
-		for pt1 in self.coords:
-			x1 = pt1[0]
-			y1 = pt1[1]
-			for pt2 in self.coords:
-				if pt2 != pt1:
-					x2 = pt2[0]
-					y2 = pt2[1]
-					dist = math.sqrt((x2-x1)**2 + (y2-y1)**2)
-					if minDist < 0 or dist < minDist:
-						minDist = dist
-		return minDist
-
 
 	def demo(self):
 		plot_root = Tk()
@@ -308,10 +193,9 @@ class NavUI:
 		self.add_idx()
 
 	def plot_partial(self, fig, ax, canvas, n=-1):
-		'''
 		points = []
 		
-		camp = self.base
+		camp = self.field.returnCamp()
 		camp_x = camp[0]
 		camp_y = camp[1]
 		for cluster in self.path:
@@ -335,45 +219,20 @@ class NavUI:
 			n = len(points)
 
 		points = points[:n]
-		'''
-		if n<0:
-			n = len(self.path)
-
-		points = self.path[:n+1]
 
 		plt.cla()
 		ax.set_xlim(-0.1*self.x,1.1*self.x)
 		ax.set_ylim(-0.1*self.y,1.1*self.y)
-		clusters = {}
 		x,y,c = zip(*points)
-		for idx, pt in enumerate(x):
-			if c[idx] not in clusters:
-				clusters[c[idx]] = ([x[idx]],[y[idx]])
-			else:
-				clusters[c[idx]][0].append(x[idx])
-				clusters[c[idx]][1].append(y[idx])
-		
-		colorArray = ["tab:blue","tab:red","tab:green","tab:orange","tab:purple","tab:cyan","tab:gray","tab:brown","tab:pink"]
-
-		for cluster in clusters:
-			pts = clusters[cluster]
-			ax.set_title("Node " + str(self.node_idx))
-			ax.plot(pts[0],pts[1], marker = 'o',color=colorArray[cluster%len(colorArray)])
-			ax.set_aspect('equal')
-
-		#ax.set_title("Node " + str(self.node_idx))
-		#ax.plot(x,y, marker = 'o',color='tab:blue')
-		#ax.set_aspect('equal')
+		ax.set_title("Node " + str(self.node_idx))
+		ax.plot(x,y, marker = 'o',color='tab:blue')
+		ax.set_aspect('equal')
 
 		canvas.draw()
 		canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
 
-	def ani_update(self, i, line, line2):
+	def ani_update(self, i, line):
 		line.set_data(self.ani_x[:i], self.ani_y[:i])
-		if i >= len(self.ani_x):
-			line2.set_data(self.ani_x[i-1], self.ani_y[i-1])
-		else:
-			line2.set_data(self.ani_x[i], self.ani_y[i])
 		if i == 60:
 			self.anim.pause()
 			#self.plot_partial(self.demo_fig,self.demo_ax,self.demo_canvas, n=self.node_idx)
@@ -385,8 +244,7 @@ class NavUI:
 		#print(self.ani_x)
 		#print(self.ani_y)
 		line, = self.demo_ax.plot(self.ani_x[0],self.ani_y[0],color='tab:blue')
-		line2, = self.demo_ax.plot(self.ani_x[0],self.ani_y[0],color='tab:red', marker='*')
-		self.anim = animation.FuncAnimation(self.demo_fig, self.ani_update, frames=len(self.ani_x)+5, fargs=[line, line2], interval=25, blit=False, repeat=False)
+		self.anim = animation.FuncAnimation(self.demo_fig, self.ani_update, frames=len(self.ani_x)+5, fargs=[line], interval=25, blit=False, repeat=False)
 		self.demo_canvas.draw()
 
 	def interpolate(self, pt1, pt2, n):
@@ -405,7 +263,7 @@ class NavUI:
 	def getPt(self, n_idx):
 		points = []
 		
-		camp = self.base
+		camp = self.field.returnCamp()
 		camp_x = camp[0]
 		camp_y = camp[1]
 		for cluster in self.path:
@@ -429,12 +287,10 @@ class NavUI:
 			self.plot_partial(self.demo_fig,self.demo_ax,self.demo_canvas, n=self.node_idx)
 			self.node_idx = self.node_idx + 1
 			print(self.node_idx)
-			#pt1 = self.getPt(self.node_idx-1)
-			#pt2 = self.getPt(self.node_idx)
-			pt1 = self.path[self.node_idx-1]
-			pt2 = self.path[self.node_idx]
-			#if pt1 == pt2:
-			#	print("hi")
+			pt1 = self.getPt(self.node_idx-1)
+			pt2 = self.getPt(self.node_idx)
+			if pt1 == pt2:
+				print("hi")
 			#print(pt1)
 			#print(pt2)
 			self.update_demo_pos()
@@ -445,13 +301,11 @@ class NavUI:
 			self.update_demo_pos()
 
 	def update_demo_pos(self):
-		#pt1 = self.getPt(self.node_idx)
-		#pt2 = self.getPt(self.node_idx + 1)
-		pt1 = self.path[self.node_idx]
-		pt2 = self.path[self.node_idx+1]
+		pt1 = self.getPt(self.node_idx)
+		pt2 = self.getPt(self.node_idx + 1)
 		dy = pt2[1]-pt1[1]
 		dx = pt2[0]-pt1[0]
-		deg = math.degrees(math.atan(dy/dx))
+		deg = math.tan(math.radians(dy/dx))
 		dist = math.sqrt(dx**2 + dy**2)
 		self.demo_pos.config(text = "To next node: " + str(round(dist,2)) + " m " + str(round(deg,2)) + " deg")
 
@@ -470,14 +324,11 @@ class NavUI:
 
 			self.canvas.mpl_disconnect(self.cid)
 
-			#self.field = ACO(np.array(self.coords),self.x,self.y, sampleCapacity = self.n_sample_carry)
+			self.field = ACO(np.array(self.coords),self.x,self.y, sampleCapacity = self.n_sample_carry)
 			#self.field.plot()
-			self.base = self.coords[0]
-			self.scale = self.calcScale()
 			plt.close(self.fig)
 			self.empty_root.destroy()
 			self.windowMsg("Nodes selected.")
-
 
 	def onpick(self, event):
 		self.canvas.mpl_disconnect(self.cid)
