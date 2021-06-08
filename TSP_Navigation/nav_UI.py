@@ -35,7 +35,7 @@ class NavUI:
 
 		self.root = Tk()
 		self.root.wm_title("Navigation")  
-		self.root.geometry('400x200')
+		self.root.geometry('400x250')
 
 		self.setting_lbl = Label(self.root, text="Settings")
 		self.setting_lbl.grid(column=0, row=0, columnspan = 2) 
@@ -76,8 +76,20 @@ class NavUI:
 		self.aco_btn.grid(column=3, row=3, columnspan = 2)
 
 		#self.demo = Button(self.root, text="Demo", command=self.test_ani, width = 20)
-		self.demo = Button(self.root, text="Demo", command=self.demo, width = 20)
-		self.demo.grid(column=3, row=4, columnspan = 2)
+		#self.demo = Button(self.root, text="Demo", command=self.demo, width = 20)
+		#self.demo.grid(column=3, row=4, columnspan = 2)
+
+		self.scale_lbl = Label(self.root, text="Minimum Distance (Random Gen)")
+		self.scale_lbl.grid(column=3, row=4)
+		self.scale_slider = Scale(self.root, from_=0.1, to_=20, orient=HORIZONTAL, resolution = 0.1)
+		self.scale_slider.grid(column=3, row=5, columnspan = 2)
+		self.scale_slider.set(2)
+
+		self.beta_lbl = Label(self.root, text="ACO Weight Penalty")
+		self.beta_lbl.grid(column=3, row=6)
+		self.beta_slider = Scale(self.root, from_=1, to_=2, orient=HORIZONTAL, resolution = 0.1)
+		self.beta_slider.grid(column=3, row=7, columnspan = 2)
+		self.beta_slider.set(1.1)
 
 		self.Aco = None
 		self.Cluster = None
@@ -99,15 +111,25 @@ class NavUI:
 		confirm.mainloop()
 
 	def update_settings(self):
-		self.n_sample_carry = int(self.max_cluster_ent.get())
-		self.x = float(self.field_x_ent.get())
-		self.y = float(self.field_y_ent.get())
-		self.n_nodes = int(self.node_num_ent.get())
+		if self.max_cluster_ent.get() != '':
+			self.n_sample_carry = int(self.max_cluster_ent.get())
+		
+		if self.field_x_ent.get() != '':
+			self.x = float(self.field_x_ent.get())
+
+		if self.field_y_ent.get() != '':
+			self.y = float(self.field_y_ent.get())
+
+		if self.node_num_ent.get() != '':
+			self.n_nodes = int(self.node_num_ent.get())
+
+		self.scale = self.scale_slider.get()
+		self.beta = self.beta_slider.get()
 		
 		self.windowMsg("Settings updated.")
 
 	def generate_nodes(self):
-		[locations, scale] = nav.generateLocations(self.x,self.y,2)
+		[locations, scale] = nav.generateLocations(self.x,self.y,self.scale)
 		self.coords = locations.tolist()
 		self.base = self.coords[0]
 
