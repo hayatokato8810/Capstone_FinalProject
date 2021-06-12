@@ -28,7 +28,7 @@ class NavigationSystem():
 	# Alpha = scale of the map, the r value used to generate the poisson disc samples
 	# Beta = the weight cost used to change the ACO behavior:
 	# 	Beta value = 1 means there is no penalty for 
-	def __init__(self, _basecamp, _locations, _mx=-1, _my=-1, _alpha=1, _beta=1, _gamma=10):
+	def __init__(self, _basecamp, _locations, _mx=-1, _my=-1, _alpha=1, _beta=1, _gamma=60):
 		self.basecamp = _basecamp
 		self.sampleNodes = _locations
 		if _mx == -1 or _my == -1:

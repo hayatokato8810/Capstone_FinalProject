@@ -8,7 +8,7 @@ from matplotlib.patches import Rectangle
 
 from itertools import permutations
 
-iteration_count = 10000
+iteration_count = 2000
 #weight_constant = 1.3
 
 class ACO():
@@ -180,6 +180,3 @@ class ACO():
 		
 
 	#def evalPath(self):
-
-
-

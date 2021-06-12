@@ -12,37 +12,25 @@ import networkx as nx
 
 import sys, argparse
 import json
-<<<<<<< HEAD
-import acopy
-
-import ACO_Matthew as acoM
-=======
 
 import ACO as aco
 import Clustering as cluster
->>>>>>> 4c84c4b89eb8456270224dfe7f0a3e2eb9c6a5c5
 
 from itertools import permutations
 
-scale_avg = 5
+import time
+
+scale_avg = 12
 scale_dis = 0
-<<<<<<< HEAD
-wcost_avg = 0.9
-=======
-wcost_avg = 1.1
->>>>>>> 4c84c4b89eb8456270224dfe7f0a3e2eb9c6a5c5
+wcost_avg = 1
 wcost_dis = 0
 
 class NavigationSystem():
 
-<<<<<<< HEAD
-	def __init__(self, _basecamp, _locations, _mx=-1, _my=-1):
-=======
 	# Alpha = scale of the map, the r value used to generate the poisson disc samples
 	# Beta = the weight cost used to change the ACO behavior:
 	# 	Beta value = 1 means there is no penalty for 
 	def __init__(self, _basecamp, _locations, _mx=-1, _my=-1, _alpha=1, _beta=1, _gamma=10):
->>>>>>> 4c84c4b89eb8456270224dfe7f0a3e2eb9c6a5c5
 		self.basecamp = _basecamp
 		self.sampleNodes = _locations
 		if _mx == -1 or _my == -1:
@@ -50,12 +38,9 @@ class NavigationSystem():
 		else:
 			self.map_width = _mx
 			self.map_height = _my
-<<<<<<< HEAD
-
-	#def computeBestPath(self):
-=======
 		self.sampleCapacity = _gamma
 
+		
 		# Plot an overview of all sample nodes in a field
 		fig = plt.figure()
 		ax = fig.add_subplot(111)
@@ -64,8 +49,8 @@ class NavigationSystem():
 		plt.title('Plot Representation of Sampling Field')
 		plt.xlabel('X (m)')
 		plt.ylabel('Y (m)')
-		plt.xlim([0,self.map_width])
-		plt.ylim([0,self.map_height])
+		plt.xlim([-2,52])
+		plt.ylim([-2,52])
 		plt.grid()
 		# Plot the base camp location in red
 		plt.scatter(self.basecamp[0],self.basecamp[1],color=(1,0,0),edgecolors=(0,0,0))
@@ -74,15 +59,93 @@ class NavigationSystem():
 			plt.scatter(node[0],node[1],color=(0,0,1),edgecolors=(0,0,0))
 		# Show the plot
 		plt.show()
-
-		print(f'Sample Count: {len(self.sampleNodes)}')
+		
+		'''
+		#print(f'Sample Count: {len(self.sampleNodes)}')
 
 		# Group the sample nodes into their respective clusters
 		# Clustering dictated by the maximum number of samples a person can carry
-		self.Cluster = cluster.Clustering(_locations, _alpha, _beta, _gamma = self.sampleCapacity)
+		#self.Cluster = cluster.Clustering(_locations, _alpha, _beta, _gamma = self.sampleCapacity)
 		# sortedLocation returns all the node locations with an additional column that indexes each node into a respective cluster ID
-		self.sortedLocation = self.Cluster.sampleNodes
+		#self.sortedLocation = self.Cluster.sampleNodes
+		start_time = time.time()
+		[score, brute_path]=self.bruteForce(_alpha, _beta)
+		solve_time = time.time() - start_time
+		print(solve_time)
+		print(brute_path)
 
+		# Setup the plot figure
+		fig = plt.figure()
+		ax = fig.add_subplot(111)
+		ax.set_axisbelow(True)
+		ax.set_aspect('equal')
+		plt.title('Optimal Path Calculated By Brute Force Method')
+		plt.xlabel('X (m)')
+		plt.ylabel('Y (m)')
+		plt.xlim([-2,52])
+		plt.ylim([-2,52])
+		plt.grid()
+
+		# Color gradiant used to change color throughout the path
+		# Divided by maximum sample capacity
+		colorScale = np.arange(len(brute_path)) / (self.sampleCapacity)
+
+		# Go through each connection between nodes in the result
+		for index in range(len(brute_path)-1):
+			# Current node
+			node1 = brute_path[index]
+			# Next node
+			node2 = brute_path[index+1]
+			# Draw an arrow between the two nodes
+			plt.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index],1-colorScale[index],0))
+		# Repeat but this time return back to basecamp
+		#node1 = brute_path[index+1]
+		#node2 = brute_path[0]
+		#plt.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index+1],1-colorScale[index+1],0))
+		#plt.show()
+
+		'''
+
+		start_time = time.time()
+		acoSystem = aco.ACO(self.basecamp, self.sampleNodes, _alpha, _beta)
+		result = acoSystem.computeBestPath() 
+		solve_time = time.time() - start_time
+		print(solve_time)
+
+		clusterLocations = np.insert(self.sampleNodes, 0, self.basecamp, axis=0)
+			
+		# Setup the plot figure
+		fig = plt.figure()
+		ax = fig.add_subplot(111)
+		ax.set_axisbelow(True)
+		ax.set_aspect('equal')
+		plt.title('Optimal Path Calculated By ACO Algorithm')
+		plt.xlabel('X (m)')
+		plt.ylabel('Y (m)')
+		plt.xlim([-2,52])
+		plt.ylim([-2,52])
+		plt.grid()
+
+		# Color gradiant used to change color throughout the path
+		# Divided by maximum sample capacity
+		colorScale = np.arange(len(result[1])) / (self.sampleCapacity)
+
+		# Go through each connection between nodes in the result
+		for index in range(len(result[1])-1):
+			pathID1 = result[1][index]
+			pathID2 = result[1][index+1]
+			# Current node
+			node1 = clusterLocations[pathID1]
+			# Next node
+			node2 = clusterLocations[pathID2]
+			# Draw an arrow between the two nodes
+			plt.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index],1-colorScale[index],0))
+		# Repeat but this time return back to basecamp
+		node1 = clusterLocations[pathID2]
+		node2 = clusterLocations[0]
+		plt.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index+1],1-colorScale[index+1],0))
+		plt.show()
+		'''
 		# Iterate through each cluster
 		for clusterID in range(self.Cluster.clusterCount):
 			clusterLocations = []
@@ -136,7 +199,7 @@ class NavigationSystem():
 			node2 = clusterLocations[0]
 			plt.arrow(node1[0],node1[1],node2[0]-node1[0],node2[1]-node1[1],width = 0.4,length_includes_head=True, color=(colorScale[index+1],1-colorScale[index+1],0))
 			plt.show()
->>>>>>> 4c84c4b89eb8456270224dfe7f0a3e2eb9c6a5c5
+			'''
 
 	# alpha determines power of the fraction (a > 0)
 	def evaluatePath(self, _locations, _alpha=1, _beta=1):
@@ -158,6 +221,7 @@ class NavigationSystem():
 		for i in range(len(l)):
 			tempPath = list(l[i])
 			tempPath.insert(0,startLocation)
+			tempPath.insert(len(tempPath),startLocation)
 			score = self.evaluatePath(np.array(tempPath), _alpha, _beta)
 			if maxScore < score:
 				maxScore = score
@@ -165,20 +229,12 @@ class NavigationSystem():
 
 		return [maxScore, bestPath]
 
-<<<<<<< HEAD
-def generateLocations(_scale):
-=======
 def generateLocations(x,y,_scale):
->>>>>>> 4c84c4b89eb8456270224dfe7f0a3e2eb9c6a5c5
 	# No argument given
 	if len(sys.argv[1:]) == 0:
 		print('Generate locations...')
 		while True:
-<<<<<<< HEAD
-			nodes = np.array(poisson_disc_samples(50, 50, r=_scale))
-=======
 			nodes = np.array(poisson_disc_samples(x, y, r=_scale))
->>>>>>> 4c84c4b89eb8456270224dfe7f0a3e2eb9c6a5c5
 			if len(nodes) > 2:
 				break
 		np.random.shuffle(nodes)
@@ -192,11 +248,7 @@ def generateLocations(x,y,_scale):
 		if sys.argv[1] == '-s':
 			print('Saving location file...')
 			while True:
-<<<<<<< HEAD
-				nodes = np.array(poisson_disc_samples(50, 50, r=_scale))
-=======
 				nodes = np.array(poisson_disc_samples(x, y, r=_scale))
->>>>>>> 4c84c4b89eb8456270224dfe7f0a3e2eb9c6a5c5
 				if len(nodes) > 2:
 					break
 			np.random.shuffle(nodes)
@@ -242,68 +294,6 @@ def main():
 	wcost = 0
 	while True:
 		wcost = random.normalvariate(wcost_avg, wcost_dis)
-<<<<<<< HEAD
-		if wcost <= 1:
-			break
-
-	[locations, scale] = generateLocations(scale)
-
-	print(f'Scale: {scale}')
-	print(f'Wcost: {wcost}')
-	print(f'Sample Count: {len(locations)}')
-
-	navigationSystem = NavigationSystem(locations[0,:],locations[1:,:],50,50)
-	plot(locations)
-	#[maxScore, bestPath] = navigationSystem.bruteForce(_alpha=scale, _beta=wcost)
-
-	#s = navigationSystem.evaluatePath(locations, _alpha=scale, _beta=wcost)
-	#print(f'Score: {s}')
-	#print(f'Max Score: {maxScore}')
-
-	#navigationSystem.plot(bestPath)
-
-
-
-	antSystem = acoM.ACO(locations,50,50)
-	antSystem.clusterize()
-	antSystem.plot()
-	#path = antSystem.compute_aco()
-	#path = path.tolist()
-	#for p in path:
-	#	x,y,c = zip(*p)
-	#	plt.plot(x,y, marker = 'o')
-	#plt.show()
-
-	'''
-	centerPos = locations[antSystem.campIndex,:]
-
-	navigationSystem = NavigationSystem(locations[0,:],locations[1:,:],50,50)
-
-	totalscore = 0;
-	for p in path:
-		temp = np.array(p)
-		p = np.delete(temp,2,axis=1)
-		p = p.tolist()
-		p.pop()
-
-		route = np.array(p)
-		while route[0].tolist() != centerPos.tolist():
-			route = np.roll(route,1)
-		route = np.insert(route, len(route), centerPos,0)
-
-		#print(route)
-
-		navigationSystem.plot(route)
-		plt.show()
-
-
-		s = navigationSystem.evaluatePath(route)
-		totalscore += s
-		print(s)
-	print('------------------------')
-	print(f'total = {totalscore}')
-	'''
-=======
 		if wcost <= wcost_avg:
 			break
 
@@ -314,7 +304,7 @@ def main():
 
 	#print(f'Scale: {scale}')
 	#print(f'Wcost: {wcost}')
-	#print(f'Sample Count: {len(locations)}')
+	print(f'Sample Count: {len(locations)}')
 
 	#print(locations)
 
@@ -324,23 +314,16 @@ def main():
 	#print(locations)
 	#print(basecamp)
 
-	print("wcost")
-	print(wcost)
+
+
 	navigationSystem = NavigationSystem(basecamp, locations,50,50, _alpha=scale, _beta=wcost)
 	#plot(locations)
 
 
 
 
->>>>>>> 4c84c4b89eb8456270224dfe7f0a3e2eb9c6a5c5
 
 
 if __name__ == "__main__":
 	main()
-
-
-
-
-
-
 
